@@ -3,12 +3,14 @@ import '../providers/reader_provider.dart';
 
 class WordDisplay extends StatelessWidget {
   final String word;
+  final double fontSize;
 
-  const WordDisplay({super.key, required this.word});
+  const WordDisplay({super.key, required this.word, required this.fontSize});
 
-  static const double _fontSize = 52;
-  static const double _charWidth = 31; // approximate width per char at fontSize 52
-  static const int _maxOrp = 3;        // max ORP index = max left chars before pivot
+  static const int _maxOrp = 3;
+
+  // approximate char width relative to font size for Roboto
+  double get _charWidth => fontSize * 0.58;
 
   @override
   Widget build(BuildContext context) {
@@ -31,9 +33,9 @@ class WordDisplay extends StatelessWidget {
           textBaseline: TextBaseline.alphabetic,
           children: [
             SizedBox(width: leftPad),
-            _wordSpan(before, Colors.white),
-            _wordSpan(pivot, const Color(0xFFFF4444), bold: true),
-            _wordSpan(after, Colors.white),
+            _span(before, Colors.white),
+            _span(pivot, const Color(0xFFFF4444), bold: true),
+            _span(after, Colors.white),
           ],
         ),
         const SizedBox(height: 6),
@@ -42,18 +44,16 @@ class WordDisplay extends StatelessWidget {
     );
   }
 
-  Widget _wordSpan(String text, Color color, {bool bold = false}) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize: _fontSize,
-        color: color,
-        fontWeight: bold ? FontWeight.bold : FontWeight.w400,
-        letterSpacing: 1.5,
-        height: 1,
-      ),
-    );
-  }
+  Widget _span(String text, Color color, {bool bold = false}) => Text(
+        text,
+        style: TextStyle(
+          fontSize: fontSize,
+          color: color,
+          fontWeight: bold ? FontWeight.bold : FontWeight.w400,
+          letterSpacing: 1.5,
+          height: 1,
+        ),
+      );
 
   Widget _orpTick() => Container(
         width: 2,

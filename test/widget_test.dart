@@ -37,5 +37,15 @@ void main() {
       expect(provider.currentIndex, 0);
       expect(provider.isPlaying, false);
     });
+
+    test('fontSize clamps between 24 and 80', () {
+      final provider = ReaderProvider();
+      provider.setFontSize(100);
+      expect(provider.fontSize, 80.0);
+      provider.setFontSize(10);
+      expect(provider.fontSize, 24.0);
+      provider.setFontSize(52);
+      expect(provider.fontSize, 52.0);
+    });
   });
 }

@@ -5,12 +5,14 @@ class ReaderProvider extends ChangeNotifier {
   List<String> _words = [];
   int _currentIndex = 0;
   int _wpm = 250;
+  double _fontSize = 48.0;
   bool _isPlaying = false;
   Timer? _timer;
 
   List<String> get words => _words;
   int get currentIndex => _currentIndex;
   int get wpm => _wpm;
+  double get fontSize => _fontSize;
   bool get isPlaying => _isPlaying;
   bool get hasText => _words.isNotEmpty;
 
@@ -33,6 +35,11 @@ class ReaderProvider extends ChangeNotifier {
   void setWpm(int wpm) {
     _wpm = wpm.clamp(50, 1000);
     if (_isPlaying) _restartTimer();
+    notifyListeners();
+  }
+
+  void setFontSize(double size) {
+    _fontSize = size.clamp(24.0, 80.0);
     notifyListeners();
   }
 

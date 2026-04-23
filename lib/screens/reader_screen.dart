@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/reader_provider.dart';
@@ -34,13 +35,20 @@ class ReaderScreen extends StatelessWidget {
               ),
               Expanded(
                 child: GestureDetector(
-                  onTap: reader.togglePlayPause,
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    reader.togglePlayPause();
+                  },
                   behavior: HitTestBehavior.opaque,
                   child: Center(
-                    child: WordDisplay(word: reader.currentWord),
+                    child: WordDisplay(
+                      word: reader.currentWord,
+                      fontSize: reader.fontSize,
+                    ),
                   ),
                 ),
               ),
+              _FontSizeControls(reader: reader),
               _WpmSlider(reader: reader),
               _Controls(reader: reader),
             ],
@@ -49,6 +57,52 @@ class ReaderScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+class _FontSizeControls extends StatelessWidget {
+  final ReaderProvider reader;
+  const _FontSizeControls({required this.reader});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text('Aa', style: TextStyle(color: Colors.white38, fontSize: 11)),
+          const SizedBox(width: 12),
+          _sizeBtn(Icons.remove, () {
+            HapticFeedback.selectionClick();
+            reader.setFontSize(reader.fontSize - 4);
+          }),
+          const SizedBox(width: 8),
+          Text(
+            '${reader.fontSize.round()}',
+            style: const TextStyle(color: Colors.white54, fontSize: 12, fontFamily: 'monospace'),
+          ),
+          const SizedBox(width: 8),
+          _sizeBtn(Icons.add, () {
+            HapticFeedback.selectionClick();
+            reader.setFontSize(reader.fontSize + 4);
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _sizeBtn(IconData icon, VoidCallback onTap) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: Colors.white10,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 18, color: Colors.white60),
+        ),
+      );
 }
 
 class _WpmSlider extends StatelessWidget {
@@ -70,14 +124,18 @@ class _WpmSlider extends StatelessWidget {
               divisions: 190,
               activeColor: const Color(0xFFFF4444),
               inactiveColor: Colors.white12,
-              onChanged: (v) => reader.setWpm(v.round()),
+              onChanged: (v) {
+                HapticFeedback.selectionClick();
+                reader.setWpm(v.round());
+              },
             ),
           ),
           SizedBox(
             width: 40,
             child: Text(
               '${reader.wpm}',
-              style: const TextStyle(color: Colors.white54, fontSize: 12, fontFamily: 'monospace'),
+              style: const TextStyle(
+                  color: Colors.white54, fontSize: 12, fontFamily: 'monospace'),
               textAlign: TextAlign.right,
             ),
           ),
@@ -98,43 +156,56 @@ class _Controls extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _iconBtn(Icons.restart_alt, Colors.white38, reader.restart, size: 28),
+          _iconBtn(Icons.restart_alt, Colors.white38, () {
+            HapticFeedback.heavyImpact();
+            reader.restart();
+          }, size: 28),
           const SizedBox(width: 12),
-          _iconBtn(Icons.skip_previous_rounded, Colors.white60, reader.stepBackward),
+          _iconBtn(Icons.skip_previous_rounded, Colors.white60, () {
+            HapticFeedback.lightImpact();
+            reader.stepBackward();
+          }),
           const SizedBox(width: 16),
           _playButton(reader),
           const SizedBox(width: 16),
-          _iconBtn(Icons.skip_next_rounded, Colors.white60, reader.stepForward),
+          _iconBtn(Icons.skip_next_rounded, Colors.white60, () {
+            HapticFeedback.lightImpact();
+            reader.stepForward();
+          }),
           const SizedBox(width: 12),
-          _iconBtn(Icons.close, Colors.white38, () => Navigator.pop(context), size: 28),
+          _iconBtn(Icons.close, Colors.white38, () {
+            HapticFeedback.lightImpact();
+            Navigator.pop(context);
+          }, size: 28),
         ],
       ),
     );
   }
 
-  Widget _iconBtn(IconData icon, Color color, VoidCallback onTap, {double size = 32}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Icon(icon, color: color, size: size),
-    );
-  }
+  Widget _iconBtn(IconData icon, Color color, VoidCallback onTap,
+          {double size = 32}) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Icon(icon, color: color, size: size),
+      );
 
-  Widget _playButton(ReaderProvider reader) {
-    return GestureDetector(
-      onTap: reader.togglePlayPause,
-      child: Container(
-        width: 72,
-        height: 72,
-        decoration: const BoxDecoration(
-          color: Color(0xFFFF4444),
-          shape: BoxShape.circle,
+  Widget _playButton(ReaderProvider reader) => GestureDetector(
+        onTap: () {
+          HapticFeedback.mediumImpact();
+          reader.togglePlayPause();
+        },
+        child: Container(
+          width: 72,
+          height: 72,
+          decoration: const BoxDecoration(
+            color: Color(0xFFFF4444),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            reader.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+            size: 42,
+            color: Colors.white,
+          ),
         ),
-        child: Icon(
-          reader.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-          size: 42,
-          color: Colors.white,
-        ),
-      ),
-    );
-  }
+      );
 }
