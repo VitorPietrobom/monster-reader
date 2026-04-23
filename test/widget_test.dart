@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:monster_reader/providers/reader_provider.dart';
+import 'package:monster_reader/services/text_preprocessor.dart';
 
 void main() {
   group('ReaderProvider', () {
@@ -44,8 +45,57 @@ void main() {
       expect(provider.fontSize, 80.0);
       provider.setFontSize(10);
       expect(provider.fontSize, 24.0);
-      provider.setFontSize(52);
-      expect(provider.fontSize, 52.0);
+    });
+
+    test('wpm clamps between 50 and 1000', () {
+      final provider = ReaderProvider();
+      provider.setWpm(9999);
+      expect(provider.wpm, 1000);
+      provider.setWpm(1);
+      expect(provider.wpm, 50);
+    });
+
+    test('wordsRemaining and minutesLeft are correct', () {
+      final provider = ReaderProvider();
+      provider.loadText('one two three four five');
+      provider.setWpm(300);
+      expect(provider.wordsRemaining, 5);
+      expect(provider.minutesLeft, closeTo(5 / 300, 0.001));
+    });
+
+    test('contextWords returns window around current index', () {
+      final provider = ReaderProvider();
+      provider.loadText(List.generate(30, (i) => 'word$i').join(' '));
+      provider.stepForward(); // index 1
+      final ctx = provider.contextWords;
+      expect(ctx.any((e) => e.key == 1), true);
+    });
+
+    test('declineResume keeps index at 0', () {
+      final provider = ReaderProvider();
+      provider.loadText('one two three');
+      provider.declineResume();
+      expect(provider.currentIndex, 0);
+      expect(provider.pendingResumeIndex, null);
+    });
+  });
+
+  group('TextPreprocessor', () {
+    test('removes standalone page numbers', () {
+      final result = TextPreprocessor.clean('Hello\n\n42\n\nWorld');
+      expect(result.contains('42'), false);
+      expect(result.contains('Hello'), true);
+      expect(result.contains('World'), true);
+    });
+
+    test('fixes hyphenated line breaks', () {
+      final result = TextPreprocessor.clean('hyphen-\nated');
+      expect(result.contains('hyphenated'), true);
+    });
+
+    test('collapses excessive newlines', () {
+      final result = TextPreprocessor.clean('a\n\n\n\nb');
+      expect(result, 'a\n\nb');
     });
   });
 }

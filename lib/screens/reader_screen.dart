@@ -3,10 +3,64 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/reader_provider.dart';
+import '../widgets/context_strip.dart';
+import '../widgets/countdown_overlay.dart';
 import '../widgets/word_display.dart';
 
-class ReaderScreen extends StatelessWidget {
+class ReaderScreen extends StatefulWidget {
   const ReaderScreen({super.key});
+
+  @override
+  State<ReaderScreen> createState() => _ReaderScreenState();
+}
+
+class _ReaderScreenState extends State<ReaderScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final reader = context.read<ReaderProvider>();
+      if (reader.pendingResumeIndex != null) _showResumeDialog(reader);
+    });
+  }
+
+  void _showResumeDialog(ReaderProvider reader) {
+    final index = reader.pendingResumeIndex!;
+    final total = reader.words.length;
+    final pct = (index / total * 100).round();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Resume reading?'),
+        content: Text(
+          'You previously stopped at word $index of $total ($pct%).',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              reader.declineResume();
+              Navigator.pop(context);
+            },
+            child: const Text('Start over',
+                style: TextStyle(color: Colors.white38)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              reader.acceptResume();
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF4444)),
+            child: const Text('Resume'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,10 +69,18 @@ class ReaderScreen extends StatelessWidget {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Consumer<ReaderProvider>(
-          builder: (_, reader, __) => Text(
-            '${reader.currentIndex + 1} / ${reader.words.length}',
-            style: const TextStyle(fontSize: 14, color: Colors.white38),
-          ),
+          builder: (_, reader, __) {
+            final mins = reader.minutesLeft;
+            final timeStr = mins < 1
+                ? '<1m left'
+                : mins < 60
+                    ? '${mins.round()}m left'
+                    : '${(mins / 60).floor()}h ${(mins % 60).round()}m left';
+            return Text(
+              '${reader.currentIndex + 1} / ${reader.words.length}  ·  $timeStr',
+              style: const TextStyle(fontSize: 13, color: Colors.white38),
+            );
+          },
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -30,7 +92,8 @@ class ReaderScreen extends StatelessWidget {
               LinearProgressIndicator(
                 value: reader.progress,
                 backgroundColor: Colors.white12,
-                valueColor: const AlwaysStoppedAnimation(Color(0xFFFF4444)),
+                valueColor:
+                    const AlwaysStoppedAnimation(Color(0xFFFF4444)),
                 minHeight: 3,
               ),
               Expanded(
@@ -41,13 +104,20 @@ class ReaderScreen extends StatelessWidget {
                   },
                   behavior: HitTestBehavior.opaque,
                   child: Center(
-                    child: WordDisplay(
-                      word: reader.currentWord,
-                      fontSize: reader.fontSize,
-                    ),
+                    child: reader.countdown != null
+                        ? CountdownOverlay(count: reader.countdown!)
+                        : WordDisplay(
+                            word: reader.currentWord,
+                            fontSize: reader.fontSize,
+                          ),
                   ),
                 ),
               ),
+              if (reader.countdown == null)
+                ContextStrip(
+                  contextWords: reader.contextWords,
+                  currentIndex: reader.currentIndex,
+                ),
               _FontSizeControls(reader: reader),
               _WpmSlider(reader: reader),
               _Controls(reader: reader),
@@ -66,22 +136,30 @@ class _FontSizeControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text('Aa', style: TextStyle(color: Colors.white38, fontSize: 11)),
+          const Text('Aa',
+              style: TextStyle(color: Colors.white38, fontSize: 11)),
           const SizedBox(width: 12),
           _sizeBtn(Icons.remove, () {
             HapticFeedback.selectionClick();
             reader.setFontSize(reader.fontSize - 4);
           }),
-          const SizedBox(width: 8),
-          Text(
-            '${reader.fontSize.round()}',
-            style: const TextStyle(color: Colors.white54, fontSize: 12, fontFamily: 'monospace'),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 32,
+            child: Text(
+              '${reader.fontSize.round()}',
+              style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                  fontFamily: 'monospace'),
+              textAlign: TextAlign.center,
+            ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           _sizeBtn(Icons.add, () {
             HapticFeedback.selectionClick();
             reader.setFontSize(reader.fontSize + 4);
@@ -115,7 +193,8 @@ class _WpmSlider extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          const Text('WPM', style: TextStyle(color: Colors.white38, fontSize: 12)),
+          const Text('WPM',
+              style: TextStyle(color: Colors.white38, fontSize: 12)),
           Expanded(
             child: Slider(
               value: reader.wpm.toDouble(),
@@ -135,7 +214,9 @@ class _WpmSlider extends StatelessWidget {
             child: Text(
               '${reader.wpm}',
               style: const TextStyle(
-                  color: Colors.white54, fontSize: 12, fontFamily: 'monospace'),
+                  color: Colors.white54,
+                  fontSize: 12,
+                  fontFamily: 'monospace'),
               textAlign: TextAlign.right,
             ),
           ),
@@ -152,7 +233,7 @@ class _Controls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 48, top: 8),
+      padding: const EdgeInsets.only(bottom: 44, top: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -202,7 +283,9 @@ class _Controls extends StatelessWidget {
             shape: BoxShape.circle,
           ),
           child: Icon(
-            reader.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+            reader.isPlaying || reader.countdown != null
+                ? Icons.pause_rounded
+                : Icons.play_arrow_rounded,
             size: 42,
             color: Colors.white,
           ),
