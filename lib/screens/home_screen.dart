@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:pdf_text/pdf_text.dart';
+import 'package:pdfrx/pdfrx.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/reader_provider.dart';
@@ -87,8 +87,13 @@ class _HomeScreenState extends State<HomeScreen> {
       if (ext == 'epub') {
         raw = await EpubService.extractText(file);
       } else {
-        final doc = await PDFDoc.fromFile(file);
-        raw = await doc.text;
+        final doc = await PdfDocument.openFile(file.path);
+        final buffer = StringBuffer();
+        for (int i = 0; i < doc.pages.length; i++) {
+          final pageText = await doc.pages[i].loadText();
+          buffer.writeln(pageText.fullText);
+        }
+        raw = buffer.toString();
       }
 
       if (raw.trim().isEmpty) {
