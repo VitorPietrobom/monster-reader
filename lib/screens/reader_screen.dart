@@ -103,14 +103,15 @@ class _ReaderScreenState extends State<ReaderScreen> {
                     reader.togglePlayPause();
                   },
                   behavior: HitTestBehavior.opaque,
-                  child: Center(
-                    child: reader.countdown != null
-                        ? CountdownOverlay(count: reader.countdown!)
-                        : WordDisplay(
+                  child: reader.countdown != null
+                      ? Center(child: CountdownOverlay(count: reader.countdown!))
+                      : Align(
+                          alignment: Alignment.center,
+                          child: WordDisplay(
                             word: reader.currentWord,
                             fontSize: reader.fontSize,
                           ),
-                  ),
+                        ),
                 ),
               ),
               if (reader.countdown == null)
