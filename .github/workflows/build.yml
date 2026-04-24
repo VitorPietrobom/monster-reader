@@ -29,6 +29,31 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Generate launcher icon PNGs
+        run: |
+          python3 << 'EOF'
+          import struct, zlib, os
+
+          def make_png(w, h):
+              """Solid #0D0D0D PNG at the given size."""
+              def chunk(t, d):
+                  c = t + d
+                  return struct.pack('>I', len(d)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)
+              raw = (b'\x00' + bytes([13, 13, 13]) * w) * h
+              return (b'\x89PNG\r\n\x1a\n'
+                      + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0))
+                      + chunk(b'IDAT', zlib.compress(raw))
+                      + chunk(b'IEND', b''))
+
+          sizes = {'mdpi': 48, 'hdpi': 72, 'xhdpi': 96, 'xxhdpi': 144, 'xxxhdpi': 192}
+          for dpi, size in sizes.items():
+              path = f'android/app/src/main/res/mipmap-{dpi}'
+              os.makedirs(path, exist_ok=True)
+              with open(f'{path}/ic_launcher.png', 'wb') as f:
+                  f.write(make_png(size, size))
+          print("Icons generated.")
+          EOF
+
       - name: Install dependencies
         run: flutter pub get
 
