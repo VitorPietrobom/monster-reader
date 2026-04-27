@@ -9,7 +9,11 @@ import 'services/preferences_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await PreferencesService.instance.init();
-  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
   runApp(const MonsterReaderApp());
 }
 

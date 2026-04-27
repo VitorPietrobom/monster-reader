@@ -87,6 +87,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
       ),
       body: Consumer<ReaderProvider>(
         builder: (context, reader, _) {
+          final isLandscape =
+              MediaQuery.orientationOf(context) == Orientation.landscape;
           return Column(
             children: [
               LinearProgressIndicator(
@@ -97,35 +99,232 @@ class _ReaderScreenState extends State<ReaderScreen> {
                 minHeight: 3,
               ),
               Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    reader.togglePlayPause();
-                  },
-                  behavior: HitTestBehavior.opaque,
-                  child: reader.countdown != null
-                      ? Center(child: CountdownOverlay(count: reader.countdown!))
-                      : Align(
-                          alignment: Alignment.center,
-                          child: WordDisplay(
-                            word: reader.currentWord,
-                            fontSize: reader.fontSize,
-                          ),
-                        ),
-                ),
+                child: isLandscape
+                    ? _LandscapeBody(reader: reader)
+                    : _PortraitBody(reader: reader),
               ),
-              if (reader.countdown == null)
-                ContextStrip(
-                  contextWords: reader.contextWords,
-                  currentIndex: reader.currentIndex,
-                ),
-              _FontSizeControls(reader: reader),
-              _WpmSlider(reader: reader),
-              _Controls(reader: reader),
             ],
           );
         },
       ),
+    );
+  }
+}
+
+class _PortraitBody extends StatelessWidget {
+  final ReaderProvider reader;
+  const _PortraitBody({required this.reader});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(child: _WordArea(reader: reader)),
+        if (reader.countdown == null)
+          ContextStrip(
+            contextWords: reader.contextWords,
+            currentIndex: reader.currentIndex,
+          ),
+        _FontSizeControls(reader: reader),
+        _WpmSlider(reader: reader),
+        _Controls(reader: reader),
+        const SizedBox(height: 32),
+      ],
+    );
+  }
+}
+
+class _LandscapeBody extends StatelessWidget {
+  final ReaderProvider reader;
+  const _LandscapeBody({required this.reader});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Word fills the top like a video frame.
+        Expanded(child: _WordArea(reader: reader)),
+        if (reader.countdown == null)
+          ContextStrip(
+            contextWords: reader.contextWords,
+            currentIndex: reader.currentIndex,
+          ),
+        // Single horizontal control bar beneath, video-player style.
+        _LandscapeControlBar(reader: reader),
+      ],
+    );
+  }
+}
+
+/// Compact horizontal strip: transport | WPM slider | font-size buttons.
+class _LandscapeControlBar extends StatelessWidget {
+  final ReaderProvider reader;
+  const _LandscapeControlBar({required this.reader});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+      child: Row(
+        children: [
+          _iconBtn(Icons.restart_alt, Colors.white38, () {
+            HapticFeedback.heavyImpact();
+            reader.restart();
+          }, size: 22),
+          const SizedBox(width: 6),
+          _iconBtn(Icons.skip_previous_rounded, Colors.white60, () {
+            HapticFeedback.lightImpact();
+            reader.stepBackward();
+          }, size: 28),
+          const SizedBox(width: 8),
+          _playButton(reader),
+          const SizedBox(width: 8),
+          _iconBtn(Icons.skip_next_rounded, Colors.white60, () {
+            HapticFeedback.lightImpact();
+            reader.stepForward();
+          }, size: 28),
+          const SizedBox(width: 12),
+          // WPM slider fills the middle.
+          const Text('WPM',
+              style: TextStyle(color: Colors.white38, fontSize: 11)),
+          Expanded(
+            child: Slider(
+              value: reader.wpm.toDouble(),
+              min: 50,
+              max: 1000,
+              divisions: 190,
+              activeColor: const Color(0xFFFF4444),
+              inactiveColor: Colors.white12,
+              onChanged: (v) {
+                HapticFeedback.selectionClick();
+                reader.setWpm(v.round());
+              },
+            ),
+          ),
+          SizedBox(
+            width: 38,
+            child: Text(
+              '${reader.wpm}',
+              style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 11,
+                  fontFamily: 'monospace'),
+              textAlign: TextAlign.right,
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Font-size: minus / value / plus.
+          _miniBtn(Icons.text_decrease_rounded, () {
+            HapticFeedback.selectionClick();
+            reader.setFontSize(reader.fontSize - 4);
+          }),
+          SizedBox(
+            width: 24,
+            child: Text(
+              '${reader.fontSize.round()}',
+              style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 11,
+                  fontFamily: 'monospace'),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          _miniBtn(Icons.text_increase_rounded, () {
+            HapticFeedback.selectionClick();
+            reader.setFontSize(reader.fontSize + 4);
+          }),
+          const SizedBox(width: 8),
+          _iconBtn(Icons.close, Colors.white38, () {
+            HapticFeedback.lightImpact();
+            Navigator.pop(context);
+          }, size: 22),
+        ],
+      ),
+    );
+  }
+
+  Widget _iconBtn(IconData icon, Color color, VoidCallback onTap,
+          {double size = 28}) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Icon(icon, color: color, size: size),
+      );
+
+  Widget _miniBtn(IconData icon, VoidCallback onTap) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: Colors.white10,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(icon, size: 16, color: Colors.white60),
+        ),
+      );
+
+  Widget _playButton(ReaderProvider reader) => GestureDetector(
+        onTap: () {
+          HapticFeedback.mediumImpact();
+          reader.togglePlayPause();
+        },
+        child: Container(
+          width: 52,
+          height: 52,
+          decoration: const BoxDecoration(
+            color: Color(0xFFFF4444),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            reader.isPlaying || reader.countdown != null
+                ? Icons.pause_rounded
+                : Icons.play_arrow_rounded,
+            size: 30,
+            color: Colors.white,
+          ),
+        ),
+      );
+}
+
+class _WordArea extends StatelessWidget {
+  final ReaderProvider reader;
+  const _WordArea({required this.reader});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        reader.togglePlayPause();
+      },
+      behavior: HitTestBehavior.opaque,
+      child: reader.countdown != null
+          ? Center(child: CountdownOverlay(count: reader.countdown!))
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                // Pin WordDisplay to full width and vertically center it.
+                // Using an explicit full-width SizedBox guarantees WordDisplay
+                // always gets the same tight width constraint, so its internal
+                // pivotColumnX never drifts between word changes.
+                final lineHeight = reader.fontSize * 1.2;
+                const tickStack = 14.0 + 6.0 + 6.0 + 14.0;
+                final h = lineHeight + tickStack;
+                final topPad = (constraints.maxHeight - h) / 2;
+                return Stack(
+                  children: [
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: topPad > 0 ? topPad : 0,
+                      child: WordDisplay(
+                        word: reader.currentWord,
+                        fontSize: reader.fontSize,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
     );
   }
 }
@@ -234,7 +433,7 @@ class _Controls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 44, top: 6),
+      padding: const EdgeInsets.only(bottom: 6, top: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
